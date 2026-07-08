@@ -11,10 +11,14 @@ import routes from './routes';
 import { errorHandler } from './middleware/errorHandler';
 
 const app = express();
-app.use(cors());
+// credentials:true is required for the browser to send/accept the httpOnly session cookie when
+// the client is hosted on a different origin (e.g. separate Render services). With credentials
+// enabled, `origin: true` reflects the request's actual Origin instead of using a wildcard, which
+// browsers require once credentials are involved. Set CORS_ORIGIN in production to lock this to
+// your deployed client's exact origin instead of reflecting any caller.
+app.use(cors({ origin: env.corsOrigin || true, credentials: true }));
 app.use(express.json());
-// Parse cookies so auth can use an httpOnly session cookie (single-origin app; the browser sends it
-// automatically on every same-origin request). Read via req.cookies.<name>. Harmless if unused.
+// Parse cookies so auth can use an httpOnly session cookie. Read via req.cookies.<name>.
 app.use(cookieParser());
 
 // Liveness probe (the preview uses it to know the server is up).

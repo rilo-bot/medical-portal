@@ -21,6 +21,10 @@ export const env = {
   mongoUri: process.env.MONGO_URI ?? '',
   clientDist: process.env.CLIENT_DIST ?? '',
 
+  // The deployed client's origin (e.g. https://your-client.onrender.com) when client and server
+  // are hosted as separate services. Empty = permissive/reflect-origin, fine for local dev only.
+  corsOrigin: process.env.CORS_ORIGIN ?? '',
+
   // App-internal secrets — platform auto-generates and injects these
   jwtSecret,
   jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? '7d',

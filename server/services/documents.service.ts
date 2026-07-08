@@ -36,6 +36,24 @@ export async function listDocuments(collectionId?: string) {
   }));
 }
 
+/** Extracts text from a buffer and indexes it, marking the document 'failed' on any error. */
+function extractAndIndexInBackground(
+  documentId: string,
+  fileBuffer: Buffer,
+  sourceType: SourceType,
+): void {
+  (async () => {
+    try {
+      const { text, pageCount } = await extractText(fileBuffer, sourceType as 'pdf' | 'docx' | 'txt' | 'html');
+      if (pageCount) await KBDocument.findByIdAndUpdate(documentId, { pageCount });
+      await indexDocumentSafe(documentId, text);
+    } catch (err) {
+      console.error('async indexing error:', err instanceof Error ? err.message : err);
+      await KBDocument.findByIdAndUpdate(documentId, { status: 'failed' });
+    }
+  })();
+}
+
 export async function uploadDocument(
   fileBuffer: Buffer,
   originalName: string,
@@ -48,6 +66,14 @@ export async function uploadDocument(
   // Dedupe check
   const existing = await KBDocument.findOne({ contentHash, collectionId });
   if (existing) {
+    if (existing.status === 'failed') {
+      // Same content as a previous failed attempt — retry indexing instead of silently
+      // returning the stale 'failed' status forever with no way to recover from the UI.
+      const newVersion = existing.version + 1;
+      await KBDocument.findByIdAndUpdate(existing.id, { version: newVersion, status: 'processing' });
+      extractAndIndexInBackground(existing.id, fileBuffer, sourceType);
+      return { id: existing.id, title: existing.title, status: 'processing', duplicate: true };
+    }
     return {
       id: existing.id,
       title: existing.title,
@@ -73,19 +99,24 @@ export async function uploadDocument(
     uploadedBy: userId,
   });
 
-  // Extract + index asynchronously (don't block response)
-  (async () => {
-    try {
-      const { text, pageCount } = await extractText(fileBuffer, sourceType as 'pdf' | 'docx' | 'txt' | 'html');
-      if (pageCount) await KBDocument.findByIdAndUpdate(doc.id, { pageCount });
-      await indexDocumentSafe(doc.id, text);
-    } catch (err) {
-      console.error('async indexing error:', err instanceof Error ? err.message : err);
-      await KBDocument.findByIdAndUpdate(doc.id, { status: 'failed' });
-    }
-  })();
+  extractAndIndexInBackground(doc.id, fileBuffer, sourceType);
 
   return { id: doc.id, title: doc.title, status: 'processing', duplicate: false };
+}
+
+function ingestUrlInBackground(documentId: string, url: string): void {
+  (async () => {
+    try {
+      const { text } = await fetchUrl(url);
+      // Use the page title from extracted text as the title (first line)
+      const title = text.split('\n')[0]?.slice(0, 200) || url;
+      await KBDocument.findByIdAndUpdate(documentId, { title });
+      await indexDocumentSafe(documentId, text);
+    } catch (err) {
+      console.error('URL indexing error:', err instanceof Error ? err.message : err);
+      await KBDocument.findByIdAndUpdate(documentId, { status: 'failed' });
+    }
+  })();
 }
 
 export async function ingestUrl(
@@ -96,6 +127,13 @@ export async function ingestUrl(
   const contentHash = hashContent(url);
   const existing = await KBDocument.findOne({ contentHash, collectionId });
   if (existing) {
+    if (existing.status === 'failed') {
+      // Same URL as a previous failed attempt — retry instead of returning the stale status.
+      const newVersion = existing.version + 1;
+      await KBDocument.findByIdAndUpdate(existing.id, { version: newVersion, status: 'processing' });
+      ingestUrlInBackground(existing.id, url);
+      return { id: existing.id, title: existing.title, status: 'processing' };
+    }
     return { id: existing.id, title: existing.title, status: existing.status };
   }
 
@@ -112,18 +150,7 @@ export async function ingestUrl(
     uploadedBy: userId,
   });
 
-  (async () => {
-    try {
-      const { text } = await fetchUrl(url);
-      // Use the page title from extracted text as the title (first line)
-      const title = text.split('\n')[0]?.slice(0, 200) || url;
-      await KBDocument.findByIdAndUpdate(doc.id, { title });
-      await indexDocumentSafe(doc.id, text);
-    } catch (err) {
-      console.error('URL indexing error:', err instanceof Error ? err.message : err);
-      await KBDocument.findByIdAndUpdate(doc.id, { status: 'failed' });
-    }
-  })();
+  ingestUrlInBackground(doc.id, url);
 
   return { id: doc.id, title: url, status: 'processing' };
 }

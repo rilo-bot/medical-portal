@@ -1,6 +1,8 @@
 /**
- * API module — all requests use root-relative paths (/api/...) so they hit
- * the same origin that serves the built app. Never hardcode a host or port.
+ * API module — requests go to VITE_API_BASE_URL + path when set (separate client/server
+ * hosting, e.g. two Render services), or to a root-relative path otherwise (same-origin
+ * serving, or local dev via the Vite proxy). Every request sends credentials so the httpOnly
+ * session cookie round-trips even when the API is on a different origin.
  *
  * Every failed request throws an ApiError. A 401 additionally dispatches a
  * window-level 'api:unauthorized' event so the app can clear the session and
@@ -26,6 +28,12 @@ import type {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? ''
+
+function apiFetch(path: string, options?: RequestInit): Promise<Response> {
+  return fetch(`${API_BASE}${path}`, { ...options, credentials: 'include' })
+}
+
 export class ApiError extends Error {
   status: number
   constructor(status: number, message: string) {
@@ -50,7 +58,7 @@ async function handleResponse<T>(res: Response): Promise<T> {
 
 export const authApi = {
   async login(email: string, password: string): Promise<{ user: User }> {
-    const res = await fetch('/api/auth/login', {
+    const res = await apiFetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
@@ -59,17 +67,17 @@ export const authApi = {
   },
 
   async logout(): Promise<{ ok: true }> {
-    const res = await fetch('/api/auth/logout', { method: 'POST' })
+    const res = await apiFetch('/api/auth/logout', { method: 'POST' })
     return handleResponse(res)
   },
 
   async me(): Promise<{ user: User | null }> {
-    const res = await fetch('/api/auth/me')
+    const res = await apiFetch('/api/auth/me')
     return handleResponse(res)
   },
 
   async changePassword(currentPassword: string, newPassword: string): Promise<{ ok: true }> {
-    const res = await fetch('/api/auth/change-password', {
+    const res = await apiFetch('/api/auth/change-password', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ currentPassword, newPassword }),
@@ -82,12 +90,12 @@ export const authApi = {
 
 export const collectionsApi = {
   async list(): Promise<{ collections: Collection[] }> {
-    const res = await fetch('/api/collections')
+    const res = await apiFetch('/api/collections')
     return handleResponse(res)
   },
 
   async create(name: string, description?: string): Promise<Collection> {
-    const res = await fetch('/api/collections', {
+    const res = await apiFetch('/api/collections', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, description }),
@@ -103,7 +111,7 @@ export const documentsApi = {
     const url = collectionId
       ? `/api/documents?collectionId=${encodeURIComponent(collectionId)}`
       : '/api/documents'
-    const res = await fetch(url)
+    const res = await apiFetch(url)
     return handleResponse(res)
   },
 
@@ -111,12 +119,12 @@ export const documentsApi = {
     const fd = new FormData()
     fd.append('file', file)
     fd.append('collectionId', collectionId)
-    const res = await fetch('/api/documents/upload', { method: 'POST', body: fd })
+    const res = await apiFetch('/api/documents/upload', { method: 'POST', body: fd })
     return handleResponse(res)
   },
 
   async ingestUrl(url: string, collectionId: string): Promise<{ id: string; title: string; status: string }> {
-    const res = await fetch('/api/documents/url', {
+    const res = await apiFetch('/api/documents/url', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url, collectionId }),
@@ -125,12 +133,12 @@ export const documentsApi = {
   },
 
   async reindex(id: string): Promise<{ id: string; version: number; status: string }> {
-    const res = await fetch(`/api/documents/${id}/reindex`, { method: 'POST' })
+    const res = await apiFetch(`/api/documents/${id}/reindex`, { method: 'POST' })
     return handleResponse(res)
   },
 
   async remove(id: string): Promise<{ ok: true }> {
-    const res = await fetch(`/api/documents/${id}`, { method: 'DELETE' })
+    const res = await apiFetch(`/api/documents/${id}`, { method: 'DELETE' })
     return handleResponse(res)
   },
 }
@@ -139,17 +147,17 @@ export const documentsApi = {
 
 export const conversationsApi = {
   async list(): Promise<{ conversations: Conversation[] }> {
-    const res = await fetch('/api/conversations')
+    const res = await apiFetch('/api/conversations')
     return handleResponse(res)
   },
 
   async create(): Promise<{ id: string; title: string; createdAt: string }> {
-    const res = await fetch('/api/conversations', { method: 'POST' })
+    const res = await apiFetch('/api/conversations', { method: 'POST' })
     return handleResponse(res)
   },
 
   async messages(id: string): Promise<{ messages: Message[] }> {
-    const res = await fetch(`/api/conversations/${id}/messages`)
+    const res = await apiFetch(`/api/conversations/${id}/messages`)
     return handleResponse(res)
   },
 
@@ -162,7 +170,7 @@ export const conversationsApi = {
     content: string,
     complexityLevel: ComplexityLevel
   ): AsyncGenerator<string> {
-    const res = await fetch(`/api/conversations/${conversationId}/chat`, {
+    const res = await apiFetch(`/api/conversations/${conversationId}/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ content, complexityLevel }),
@@ -193,7 +201,7 @@ export const conversationsApi = {
   },
 
   async bookmark(messageId: string, bookmarked: boolean): Promise<{ id: string; bookmarked: boolean }> {
-    const res = await fetch(`/api/messages/${messageId}/bookmark`, {
+    const res = await apiFetch(`/api/messages/${messageId}/bookmark`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ bookmarked }),
@@ -202,7 +210,7 @@ export const conversationsApi = {
   },
 
   async exportMessage(messageId: string, format: ExportFormat): Promise<ExportResult> {
-    const res = await fetch(`/api/messages/${messageId}/export`, {
+    const res = await apiFetch(`/api/messages/${messageId}/export`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ format }),
@@ -211,7 +219,7 @@ export const conversationsApi = {
   },
 
   async bookmarked(): Promise<{ messages: BookmarkedMessage[] }> {
-    const res = await fetch('/api/messages/bookmarked')
+    const res = await apiFetch('/api/messages/bookmarked')
     return handleResponse(res)
   },
 }
@@ -220,7 +228,7 @@ export const conversationsApi = {
 
 export const adminApi = {
   async listUsers(): Promise<{ users: AdminUser[] }> {
-    const res = await fetch('/api/admin/users')
+    const res = await apiFetch('/api/admin/users')
     return handleResponse(res)
   },
 
@@ -230,7 +238,7 @@ export const adminApi = {
     password: string
     role: Role
   }): Promise<AdminUser> {
-    const res = await fetch('/api/admin/users', {
+    const res = await apiFetch('/api/admin/users', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -239,7 +247,7 @@ export const adminApi = {
   },
 
   async updateUserRole(id: string, role: Role): Promise<{ id: string; role: Role }> {
-    const res = await fetch(`/api/admin/users/${id}`, {
+    const res = await apiFetch(`/api/admin/users/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ role }),
@@ -248,7 +256,7 @@ export const adminApi = {
   },
 
   async auditLog(): Promise<{ entries: AuditEntry[] }> {
-    const res = await fetch('/api/admin/audit')
+    const res = await apiFetch('/api/admin/audit')
     return handleResponse(res)
   },
 }

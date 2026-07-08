@@ -5,6 +5,18 @@ import jwt from 'jsonwebtoken';
 import { env } from '../config/env.js';
 import type { AuthPayload } from '../middleware/requireAuth.js';
 
+// In production the client is typically on a different origin (separate Render services), so the
+// cookie needs SameSite=None + Secure for the browser to send it cross-origin at all (SameSite=Lax
+// blocks cross-site fetch/XHR). In dev, client and server share an origin via the Vite proxy, so
+// Lax + non-secure works over plain HTTP. clearCookie must use the same attributes to actually
+// delete the cookie the browser is holding.
+const sessionCookieOptions = {
+  httpOnly: true,
+  sameSite: (env.nodeEnv === 'production' ? 'none' : 'lax') as 'none' | 'lax',
+  secure: env.nodeEnv === 'production',
+  path: '/',
+};
+
 export async function login(req: Request, res: Response): Promise<void> {
   const { email, password } = req.body as { email?: string; password?: string };
   if (!email || !password) {
@@ -14,13 +26,7 @@ export async function login(req: Request, res: Response): Promise<void> {
 
   const { user, token } = await loginUser(email, password);
 
-  res.cookie('session', token, {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: env.nodeEnv === 'production',
-    path: '/',
-    maxAge: SEVEN_DAYS_MS,
-  });
+  res.cookie('session', token, { ...sessionCookieOptions, maxAge: SEVEN_DAYS_MS });
 
   await logAudit(user.id, 'AUTH_LOGIN', `User ${user.email} logged in`);
   res.json({ user });
@@ -36,7 +42,7 @@ export async function logout(req: Request, res: Response): Promise<void> {
       // ignore invalid token on logout
     }
   }
-  res.clearCookie('session', { path: '/' });
+  res.clearCookie('session', sessionCookieOptions);
   res.json({ ok: true });
 }
 

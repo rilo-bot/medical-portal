@@ -16,6 +16,8 @@ import {
   CheckCircle,
   Clock,
   XCircle,
+  RefreshCw,
+  Trash2,
 } from 'lucide-react'
 import { useCollectionsStore } from '@/stores/collectionsStore'
 import { useDocumentsStore } from '@/stores/documentsStore'
@@ -119,7 +121,25 @@ function CollectionCard({ collection, documents, isActive, onClick }: Collection
 
 // ─── Document row ─────────────────────────────────────────────────────────────
 
-function DocumentRow({ doc }: { doc: KBDocument }) {
+interface DocumentRowProps {
+  doc: KBDocument
+  isAdmin: boolean
+  onReindex: () => void
+  onRemove: () => void
+}
+
+function DocumentRow({ doc, isAdmin, onReindex, onRemove }: DocumentRowProps) {
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
+
+  function handleRemoveClick() {
+    if (!confirmingDelete) {
+      setConfirmingDelete(true)
+      return
+    }
+    setConfirmingDelete(false)
+    onRemove()
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 6 }}
@@ -137,6 +157,32 @@ function DocumentRow({ doc }: { doc: KBDocument }) {
         </p>
       </div>
       <StatusBadge status={doc.status} />
+      {isAdmin && (
+        <div className="flex items-center gap-0.5 shrink-0">
+          {(doc.status === 'failed' || doc.status === 'indexed') && (
+            <button
+              onClick={onReindex}
+              title={doc.status === 'failed' ? 'Retry indexing' : 'Reindex'}
+              className="p-1.5 rounded-lg text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-brand hover:bg-brand/10 transition-all"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+            </button>
+          )}
+          <button
+            onClick={handleRemoveClick}
+            onBlur={() => setConfirmingDelete(false)}
+            title={confirmingDelete ? 'Click again to confirm delete' : 'Delete document'}
+            className={[
+              'p-1.5 rounded-lg transition-all',
+              confirmingDelete
+                ? 'text-red-600 bg-red-50 opacity-100'
+                : 'text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-red-600 hover:bg-red-50',
+            ].join(' ')}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
     </motion.div>
   )
 }
@@ -227,6 +273,8 @@ export default function KnowledgeBase() {
   const documents = useDocumentsStore((s) => s.documents)
   const documentsLoading = useDocumentsStore((s) => s.loading)
   const loadDocuments = useDocumentsStore((s) => s.load)
+  const reindexDocument = useDocumentsStore((s) => s.reindex)
+  const removeDocument = useDocumentsStore((s) => s.remove)
 
   const [activeCollectionId, setActiveCollectionId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
@@ -493,7 +541,13 @@ export default function KnowledgeBase() {
               {/* Document rows */}
               <div>
                 {filteredDocuments.map((doc) => (
-                  <DocumentRow key={doc.id} doc={doc} />
+                  <DocumentRow
+                    key={doc.id}
+                    doc={doc}
+                    isAdmin={isAdmin}
+                    onReindex={() => reindexDocument(doc.id)}
+                    onRemove={() => removeDocument(doc.id)}
+                  />
                 ))}
               </div>
             </div>
