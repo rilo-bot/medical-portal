@@ -37,6 +37,10 @@ function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const location = useLocation()
 
+  // Chat provides its own single header, so the global top bar is hidden there
+  // to avoid a stacked double-header.
+  const isChat = location.pathname.startsWith('/chat')
+
   return (
     <div className="flex h-screen overflow-hidden bg-background text-foreground">
       {/* ── Left sidebar ──────────────────────────────────────── */}
@@ -44,8 +48,8 @@ function Layout() {
 
       {/* ── Main column ───────────────────────────────────────── */}
       <div className="flex flex-1 flex-col overflow-hidden min-w-0">
-        {/* Sticky top bar */}
-        <TopBar onMenuClick={() => setSidebarOpen(true)} />
+        {/* Sticky top bar — hidden on chat (chat has its own header) */}
+        {!isChat && <TopBar onMenuClick={() => setSidebarOpen(true)} />}
 
         {/* Scrollable content — bottom padding for mobile nav */}
         <main className="flex-1 overflow-y-auto overscroll-contain pb-16 md:pb-0">

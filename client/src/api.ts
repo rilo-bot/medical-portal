@@ -1,8 +1,11 @@
 /**
  * API module — requests go to VITE_API_BASE_URL + path when set (separate client/server
  * hosting, e.g. two Render services), or to a root-relative path otherwise (same-origin
- * serving, or local dev via the Vite proxy). Every request sends credentials so the httpOnly
- * session cookie round-trips even when the API is on a different origin.
+ * serving, or local dev via the Vite proxy).
+ *
+ * Auth is a Bearer token, not a cookie — cookies require SameSite=None to survive cross-origin
+ * requests between two different domains, which browsers increasingly restrict. The token is
+ * kept in localStorage and attached to every request here.
  *
  * Every failed request throws an ApiError. A 401 additionally dispatches a
  * window-level 'api:unauthorized' event so the app can clear the session and
@@ -29,9 +32,30 @@ import type {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? ''
+const TOKEN_STORAGE_KEY = 'clinicalmind:token'
+
+let authToken: string | null = (() => {
+  try {
+    return localStorage.getItem(TOKEN_STORAGE_KEY)
+  } catch {
+    return null
+  }
+})()
+
+export function setAuthToken(token: string | null): void {
+  authToken = token
+  try {
+    if (token) localStorage.setItem(TOKEN_STORAGE_KEY, token)
+    else localStorage.removeItem(TOKEN_STORAGE_KEY)
+  } catch {
+    // ignore storage errors (private browsing, quota)
+  }
+}
 
 function apiFetch(path: string, options?: RequestInit): Promise<Response> {
-  return fetch(`${API_BASE}${path}`, { ...options, credentials: 'include' })
+  const headers = new Headers(options?.headers)
+  if (authToken) headers.set('Authorization', `Bearer ${authToken}`)
+  return fetch(`${API_BASE}${path}`, { ...options, headers })
 }
 
 export class ApiError extends Error {
@@ -63,12 +87,20 @@ export const authApi = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
     })
-    return handleResponse(res)
+    const data = await handleResponse<{ user: User; token: string }>(res)
+    setAuthToken(data.token)
+    return { user: data.user }
   },
 
   async logout(): Promise<{ ok: true }> {
-    const res = await apiFetch('/api/auth/logout', { method: 'POST' })
-    return handleResponse(res)
+    try {
+      const res = await apiFetch('/api/auth/logout', { method: 'POST' })
+      return await handleResponse(res)
+    } finally {
+      // Clear the local token even if the request itself fails (e.g. offline) — the user's
+      // intent to log out should always take effect locally.
+      setAuthToken(null)
+    }
   },
 
   async me(): Promise<{ user: User | null }> {

@@ -77,7 +77,7 @@ export function ChangePasswordDialog({ open, onOpenChange }: ChangePasswordDialo
         </DialogHeader>
 
         {success ? (
-          <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+          <div className="flex items-center gap-2 rounded-lg border status-success px-4 py-3 text-sm">
             <CheckCircle2 className="h-4 w-4 shrink-0" />
             Password updated successfully.
           </div>

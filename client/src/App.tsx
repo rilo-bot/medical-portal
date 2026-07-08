@@ -14,6 +14,7 @@ import DocumentUpload from '@/pages/DocumentUpload'
 import UserManagement from '@/pages/UserManagement'
 import AdminPanel from '@/pages/AdminPanel'
 import { useAuthStore } from '@/stores/authStore'
+import { setAuthToken } from '@/api'
 
 /** Gate for the authenticated app shell — redirects to /login if there is no session. */
 function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -38,6 +39,7 @@ export default function App() {
   // stale session and send the user back to login, wherever they are.
   useEffect(() => {
     function handleUnauthorized() {
+      setAuthToken(null)
       useAuthStore.setState({ user: null })
       navigate('/login', { replace: true })
     }

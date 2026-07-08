@@ -2,7 +2,6 @@ import 'dotenv/config';
 import 'express-async-errors';
 import express from 'express';
 import cors from 'cors';
-import cookieParser from 'cookie-parser';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { env } from './config/env';
@@ -11,15 +10,11 @@ import routes from './routes';
 import { errorHandler } from './middleware/errorHandler';
 
 const app = express();
-// credentials:true is required for the browser to send/accept the httpOnly session cookie when
-// the client is hosted on a different origin (e.g. separate Render services). With credentials
-// enabled, `origin: true` reflects the request's actual Origin instead of using a wildcard, which
-// browsers require once credentials are involved. Set CORS_ORIGIN in production to lock this to
-// your deployed client's exact origin instead of reflecting any caller.
-app.use(cors({ origin: env.corsOrigin || true, credentials: true }));
+// Auth is a Bearer token (Authorization header), not a cookie, so CORS doesn't need credentials
+// mode — the client attaches the token itself. Set CORS_ORIGIN in production to restrict which
+// origin can call the API; unset reflects any caller's origin (fine for dev, looser for prod).
+app.use(cors({ origin: env.corsOrigin || true }));
 app.use(express.json());
-// Parse cookies so auth can use an httpOnly session cookie. Read via req.cookies.<name>.
-app.use(cookieParser());
 
 // Liveness probe (the preview uses it to know the server is up).
 app.get('/health', (_req, res) => {

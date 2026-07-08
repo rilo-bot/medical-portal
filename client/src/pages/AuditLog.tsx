@@ -29,14 +29,14 @@ function getActionMeta(action: string): {
   colour: string
 } {
   if (action.startsWith('chat.query'))    return { icon: MessageSquare, label: 'Query',       colour: 'bg-brand/10 text-brand' }
-  if (action.startsWith('chat.export'))   return { icon: Download,      label: 'Export',      colour: 'bg-blue-50 text-blue-600' }
-  if (action.startsWith('chat.bookmark')) return { icon: Bookmark,      label: 'Bookmark',    colour: 'bg-amber-50 text-amber-600' }
-  if (action.startsWith('document.upload'))  return { icon: Upload,   label: 'Upload',       colour: 'bg-emerald-50 text-emerald-600' }
-  if (action.startsWith('document.delete'))  return { icon: Trash2,   label: 'Delete',       colour: 'bg-red-50 text-red-500' }
-  if (action.startsWith('document.reindex')) return { icon: RefreshCw, label: 'Reindex',     colour: 'bg-purple-50 text-purple-600' }
-  if (action.startsWith('collection'))       return { icon: Database,  label: 'Collection',  colour: 'bg-teal-50 text-teal-600' }
-  if (action.startsWith('user.create'))      return { icon: UserPlus,  label: 'User Created', colour: 'bg-green-50 text-green-600' }
-  if (action.startsWith('user.role_change')) return { icon: Shield,    label: 'Role Change',  colour: 'bg-orange-50 text-orange-600' }
+  if (action.startsWith('chat.export'))   return { icon: Download,      label: 'Export',      colour: 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-300' }
+  if (action.startsWith('chat.bookmark')) return { icon: Bookmark,      label: 'Bookmark',    colour: 'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-300' }
+  if (action.startsWith('document.upload'))  return { icon: Upload,   label: 'Upload',       colour: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-300' }
+  if (action.startsWith('document.delete'))  return { icon: Trash2,   label: 'Delete',       colour: 'bg-red-50 text-red-500 dark:bg-red-500/10 dark:text-red-300' }
+  if (action.startsWith('document.reindex')) return { icon: RefreshCw, label: 'Reindex',     colour: 'bg-purple-50 text-purple-600 dark:bg-purple-500/10 dark:text-purple-300' }
+  if (action.startsWith('collection'))       return { icon: Database,  label: 'Collection',  colour: 'bg-teal-50 text-teal-600 dark:bg-teal-500/10 dark:text-teal-300' }
+  if (action.startsWith('user.create'))      return { icon: UserPlus,  label: 'User Created', colour: 'bg-green-50 text-green-600 dark:bg-green-500/10 dark:text-green-300' }
+  if (action.startsWith('user.role_change')) return { icon: Shield,    label: 'Role Change',  colour: 'bg-orange-50 text-orange-600 dark:bg-orange-500/10 dark:text-orange-300' }
   return { icon: FileText, label: action, colour: 'bg-muted text-muted-foreground' }
 }
 

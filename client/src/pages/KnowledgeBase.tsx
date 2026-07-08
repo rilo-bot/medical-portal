@@ -18,6 +18,7 @@ import {
   XCircle,
   RefreshCw,
   Trash2,
+  Menu,
 } from 'lucide-react'
 import { useCollectionsStore } from '@/stores/collectionsStore'
 import { useDocumentsStore } from '@/stores/documentsStore'
@@ -29,7 +30,7 @@ import type { Collection, KBDocument } from '@/types'
 function StatusBadge({ status }: { status: KBDocument['status'] }) {
   if (status === 'indexed') {
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border status-success">
         <CheckCircle className="w-2.5 h-2.5" />
         Indexed
       </span>
@@ -37,14 +38,14 @@ function StatusBadge({ status }: { status: KBDocument['status'] }) {
   }
   if (status === 'processing') {
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border status-warning">
         <Clock className="w-2.5 h-2.5 animate-spin" />
         Processing
       </span>
     )
   }
   return (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-50 text-red-600 border border-red-200">
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border status-danger">
       <XCircle className="w-2.5 h-2.5" />
       Failed
     </span>
@@ -175,8 +176,8 @@ function DocumentRow({ doc, isAdmin, onReindex, onRemove }: DocumentRowProps) {
             className={[
               'p-1.5 rounded-lg transition-all',
               confirmingDelete
-                ? 'text-red-600 bg-red-50 opacity-100'
-                : 'text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-red-600 hover:bg-red-50',
+                ? 'text-red-600 bg-red-50 opacity-100 dark:text-red-300 dark:bg-red-500/10'
+                : 'text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-red-600 hover:bg-red-50 dark:hover:text-red-300 dark:hover:bg-red-500/10',
             ].join(' ')}
           >
             <Trash2 className="h-3.5 w-3.5" />
@@ -280,6 +281,7 @@ export default function KnowledgeBase() {
   const [searchQuery, setSearchQuery] = useState('')
   const [showNewForm, setShowNewForm] = useState(false)
   const [formLoading, setFormLoading] = useState(false)
+  const [mobileCollectionsOpen, setMobileCollectionsOpen] = useState(false)
 
   useEffect(() => {
     loadCollections()
@@ -296,6 +298,7 @@ export default function KnowledgeBase() {
   const handleSelectCollection = useCallback((id: string) => {
     setActiveCollectionId(id)
     setSearchQuery('')
+    setMobileCollectionsOpen(false)
   }, [])
 
   const handleCreateCollection = useCallback(async (name: string, description: string) => {
@@ -325,10 +328,25 @@ export default function KnowledgeBase() {
   )
 
   return (
-    <div className="flex h-[calc(100vh-56px)] overflow-hidden bg-background">
+    <div className="flex h-[calc(100vh-120px)] md:h-[calc(100vh-56px)] overflow-hidden bg-background">
+
+      {/* ── Mobile backdrop for collections drawer ──────────────────────────── */}
+      {mobileCollectionsOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-foreground/20 backdrop-blur-sm md:hidden"
+          onClick={() => setMobileCollectionsOpen(false)}
+        />
+      )}
 
       {/* ── Left: Collections panel ─────────────────────────────────────────── */}
-      <div className="w-72 shrink-0 flex flex-col border-r border-border bg-card/50 overflow-hidden">
+      <div
+        className={[
+          'flex flex-col border-r border-border bg-card/50 overflow-hidden',
+          'fixed inset-y-0 left-0 z-50 w-[300px] max-w-[85vw] shadow-2xl transition-transform duration-300 ease-out',
+          'md:static md:z-auto md:w-72 md:shrink-0 md:shadow-none md:translate-x-0',
+          mobileCollectionsOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0',
+        ].join(' ')}
+      >
         {/* Header */}
         <div className="px-4 py-4 border-b border-border shrink-0">
           <div className="flex items-center justify-between mb-3">
@@ -416,8 +434,16 @@ export default function KnowledgeBase() {
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
 
         {/* Documents header */}
-        <div className="flex items-center justify-between gap-4 px-6 py-4 border-b border-border shrink-0 bg-card/30">
-          <div>
+        <div className="flex items-center justify-between gap-4 px-4 md:px-6 py-4 border-b border-border shrink-0 bg-card/30">
+          {/* Mobile: open collections drawer */}
+          <button
+            onClick={() => setMobileCollectionsOpen(true)}
+            className="md:hidden shrink-0 p-1.5 -ml-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            aria-label="Open collections"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+          <div className="min-w-0 flex-1">
             {activeCollection ? (
               <>
                 <h1

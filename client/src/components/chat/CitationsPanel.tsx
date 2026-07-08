@@ -22,13 +22,24 @@ export default function CitationsPanel({ citations, onClose, isOpen }: Props) {
   return (
     <AnimatePresence>
       {isOpen && (
+        <>
+          {/* Mobile backdrop */}
+          <motion.div
+            key="citations-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-40 bg-foreground/20 backdrop-blur-sm md:hidden"
+            onClick={onClose}
+          />
         <motion.aside
           key="citations-panel"
           initial={{ x: 72, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
           exit={{ x: 72, opacity: 0 }}
           transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-          className="w-72 shrink-0 flex flex-col border-l border-border bg-card h-full overflow-hidden"
+          className="fixed inset-y-0 right-0 z-50 w-full max-w-sm shadow-2xl md:static md:z-auto md:w-72 md:max-w-none md:shrink-0 md:shadow-none flex flex-col border-l border-border bg-card h-full overflow-hidden"
         >
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3.5 border-b border-border bg-card">
@@ -115,6 +126,7 @@ export default function CitationsPanel({ citations, onClose, isOpen }: Props) {
             </p>
           </div>
         </motion.aside>
+        </>
       )}
     </AnimatePresence>
   )

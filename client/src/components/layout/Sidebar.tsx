@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/authStore'
 import { Avatar } from '@/components/ui/avatar'
+import { cn } from '@/lib/utils'
 import type { User } from '@/types'
 
 interface NavItemDef {
@@ -47,14 +48,67 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
 
   return (
     <>
-      {/* ── Desktop sidebar ──────────────────────────────────────── */}
-      <aside className="hidden md:flex w-64 shrink-0 flex-col bg-card border-r border-border h-screen sticky top-0 z-40">
-        <SidebarContent
-          items={visibleItems}
-          user={user}
-          onLogout={handleLogout}
-          currentPath={location.pathname}
-        />
+      {/* ── Desktop: slim icon rail ──────────────────────────────── */}
+      <aside className="hidden md:flex w-[56px] shrink-0 flex-col items-center bg-card border-r border-border h-screen sticky top-0 z-40 py-3">
+        {/* Logo */}
+        <NavLink
+          to="/chat"
+          title="ClinicalMind"
+          aria-label="ClinicalMind — go to chat"
+          className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand shadow-sm"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2.2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-[18px] w-[18px] text-brand-foreground"
+          >
+            <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+          </svg>
+        </NavLink>
+
+        <div className="mt-3 mb-1.5 h-px w-6 bg-border" />
+
+        {/* Nav icons */}
+        <nav className="flex flex-1 flex-col items-center gap-1 pt-1" aria-label="Main navigation">
+          {visibleItems.map((item) => {
+            const Icon = item.icon
+            const isActive =
+              location.pathname === item.to ||
+              (item.to !== '/' && location.pathname.startsWith(item.to))
+            return (
+              <RailNavItem
+                key={item.to}
+                to={item.to}
+                label={item.label}
+                icon={<Icon className="h-[18px] w-[18px]" />}
+                isActive={isActive}
+              />
+            )
+          })}
+        </nav>
+
+        {/* User + logout */}
+        {user && (
+          <div className="flex flex-col items-center gap-1.5 pt-2">
+            <div title={`${user.name} · ${user.role === 'admin' ? 'Administrator' : 'Doctor'}`}>
+              <Avatar name={user.name} className="h-8 w-8 ring-1 ring-brand/20" />
+            </div>
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.92 }}
+              onClick={handleLogout}
+              title="Log out"
+              aria-label="Log out"
+              className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+            >
+              <LogOut className="h-4 w-4" />
+            </motion.button>
+          </div>
+        )}
       </aside>
 
       {/* ── Mobile overlay sidebar ───────────────────────────────── */}
@@ -97,6 +151,37 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
         )}
       </AnimatePresence>
     </>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface RailNavItemProps {
+  to: string
+  label: string
+  icon: React.ReactNode
+  isActive: boolean
+}
+
+function RailNavItem({ to, label, icon, isActive }: RailNavItemProps) {
+  return (
+    <NavLink to={to} aria-label={label} className="relative group">
+      <motion.div
+        whileTap={{ scale: 0.92 }}
+        className={cn(
+          'flex h-9 w-9 items-center justify-center rounded-lg transition-colors',
+          isActive
+            ? 'bg-brand text-brand-foreground shadow-sm'
+            : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+        )}
+      >
+        {icon}
+      </motion.div>
+      {/* Hover tooltip */}
+      <span className="pointer-events-none absolute left-full top-1/2 z-50 ml-2 -translate-y-1/2 whitespace-nowrap rounded-md bg-foreground px-2 py-1 text-xs font-medium text-background opacity-0 shadow-md transition-opacity group-hover:opacity-100">
+        {label}
+      </span>
+    </NavLink>
   )
 }
 

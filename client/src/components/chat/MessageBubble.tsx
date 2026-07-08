@@ -8,6 +8,8 @@ import {
   AlertTriangleIcon,
   CheckCircle2Icon,
   ExternalLinkIcon,
+  CopyIcon,
+  CheckIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Message, Citation } from '@/types'
@@ -23,9 +25,11 @@ interface Props {
   onFollowUp?: (text: string) => void
 }
 
-// ─── Simple markdown-lite renderer ────────────────────────────────────────────
+// ─── Markdown-lite renderer ───────────────────────────────────────────────────
+// Supports: **bold**, `inline code`, [links](url), headings, blockquotes,
+// bullet/ordered lists, fenced code blocks, GFM pipe tables, and horizontal rules.
 function parseLine(text: string, key: number | string): React.ReactNode {
-  const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g)
+  const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`|\[[^\]]+\]\([^)]+\))/g)
   return (
     <span key={key}>
       {parts.map((p, j) => {
@@ -33,10 +37,27 @@ function parseLine(text: string, key: number | string): React.ReactNode {
           return <strong key={j} className="font-semibold text-foreground">{p.slice(2, -2)}</strong>
         if (p.startsWith('`') && p.endsWith('`'))
           return <code key={j} className="px-1 py-0.5 rounded text-xs bg-muted font-mono">{p.slice(1, -1)}</code>
+        const link = p.match(/^\[([^\]]+)\]\(([^)]+)\)$/)
+        if (link)
+          return (
+            <a
+              key={j}
+              href={link[2]}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-brand underline underline-offset-2 hover:text-brand/80 break-words"
+            >
+              {link[1]}
+            </a>
+          )
         return p
       })}
     </span>
   )
+}
+
+function splitRow(row: string): string[] {
+  return row.replace(/^\||\|$/g, '').split('|').map((c) => c.trim())
 }
 
 function renderContent(content: string) {
@@ -45,7 +66,74 @@ function renderContent(content: string) {
   let i = 0
   while (i < lines.length) {
     const line = lines[i]
-    if (line.startsWith('> ')) {
+
+    // Fenced code block
+    if (line.startsWith('```')) {
+      const code: string[] = []
+      i++
+      while (i < lines.length && !lines[i].startsWith('```')) {
+        code.push(lines[i])
+        i++
+      }
+      i++ // skip closing fence
+      elements.push(
+        <pre key={`code-${i}`} className="my-2 overflow-x-auto rounded-lg bg-muted/70 border border-border p-3 text-xs">
+          <code className="font-mono text-foreground/90">{code.join('\n')}</code>
+        </pre>
+      )
+      continue
+    }
+
+    // GFM pipe table: header row followed by a |---|---| separator
+    if (line.trim().startsWith('|') && i + 1 < lines.length && /^\s*\|?[\s:|-]+\|?\s*$/.test(lines[i + 1]) && lines[i + 1].includes('-')) {
+      const header = splitRow(line)
+      i += 2 // skip header + separator
+      const rows: string[][] = []
+      while (i < lines.length && lines[i].trim().startsWith('|')) {
+        rows.push(splitRow(lines[i]))
+        i++
+      }
+      elements.push(
+        <div key={`table-${i}`} className="my-2 overflow-x-auto rounded-lg border border-border">
+          <table className="w-full text-xs border-collapse">
+            <thead>
+              <tr className="bg-muted/50">
+                {header.map((h, hi) => (
+                  <th key={hi} className="px-3 py-2 text-left font-semibold text-foreground border-b border-border">
+                    {parseLine(h, `th-${hi}`)}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r, ri) => (
+                <tr key={ri} className="even:bg-muted/20">
+                  {r.map((c, ci) => (
+                    <td key={ci} className="px-3 py-2 border-b border-border/50 text-foreground/90 align-top">
+                      {parseLine(c, `td-${ri}-${ci}`)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )
+      continue
+    }
+
+    if (/^#{1,3}\s/.test(line)) {
+      const level = line.match(/^(#{1,3})\s/)![1].length
+      const text = line.replace(/^#{1,3}\s/, '')
+      const sizeClass = level === 1 ? 'text-base' : level === 2 ? 'text-sm' : 'text-sm'
+      elements.push(
+        <p key={i} className={cn('font-semibold text-foreground mt-3 mb-1 first:mt-0', sizeClass)} style={{ fontFamily: 'Source Serif 4, serif' }}>
+          {parseLine(text, `h-${i}`)}
+        </p>
+      )
+    } else if (line.trim() === '---' || line.trim() === '***') {
+      elements.push(<hr key={i} className="my-3 border-border" />)
+    } else if (line.startsWith('> ')) {
       elements.push(
         <blockquote key={i} className="border-l-2 border-brand/40 pl-3 text-muted-foreground italic text-sm my-2">
           {parseLine(line.slice(2), 'bq')}
@@ -97,6 +185,17 @@ export default function MessageBubble({
   const isUser = message.role === 'user'
   const isActive = activeCitationMessageId === message.id
   const [showCitations, setShowCitations] = useState(false)
+  const [copied, setCopied] = useState(false)
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(message.content)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1800)
+    } catch {
+      // clipboard unavailable — no-op
+    }
+  }
 
   if (isUser) {
     return (
@@ -106,8 +205,8 @@ export default function MessageBubble({
         transition={{ duration: 0.2 }}
         className="flex justify-end"
       >
-        <div className="max-w-[72%] px-4 py-3 rounded-2xl rounded-tr-sm bg-brand text-white shadow-sm">
-          <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
+        <div className="max-w-[85%] md:max-w-[72%] px-3.5 py-2.5 rounded-xl rounded-tr-sm bg-brand text-white shadow-sm">
+          <p className="text-[13px] leading-relaxed whitespace-pre-wrap">{message.content}</p>
         </div>
       </motion.div>
     )
@@ -125,7 +224,7 @@ export default function MessageBubble({
       <div
         data-message-id={message.id}
         className={cn(
-          'max-w-[72%] rounded-2xl rounded-tl-sm border border-border bg-card shadow-sm transition-all duration-200',
+          'max-w-[92%] md:max-w-[78%] rounded-xl rounded-tl-sm border border-border bg-card shadow-sm transition-all duration-200',
           isActive && 'shadow-md ring-1 ring-brand/20'
         )}
       >
@@ -141,7 +240,7 @@ export default function MessageBubble({
             <motion.span
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-700 font-medium"
+              className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border status-warning font-medium"
             >
               <AlertTriangleIcon className="w-3 h-3" />
               AI supplemental
@@ -219,6 +318,23 @@ export default function MessageBubble({
             {message.bookmarked
               ? <BookmarkCheckIcon className="w-3.5 h-3.5" />
               : <BookmarkIcon className="w-3.5 h-3.5" />}
+          </button>
+
+          {/* Copy */}
+          <button
+            onClick={handleCopy}
+            title={copied ? 'Copied' : 'Copy answer'}
+            aria-label="Copy answer"
+            className={cn(
+              'p-1.5 rounded-lg transition-all',
+              copied
+                ? 'text-brand bg-brand/10'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+            )}
+          >
+            {copied
+              ? <CheckIcon className="w-3.5 h-3.5" />
+              : <CopyIcon className="w-3.5 h-3.5" />}
           </button>
 
           {/* Export */}

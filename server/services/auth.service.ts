@@ -3,13 +3,12 @@ import jwt from 'jsonwebtoken';
 import { User } from '../models/User.js';
 import { env } from '../config/env.js';
 
-const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
-
 export interface SessionUser {
   id: string;
   name: string;
   email: string;
   role: 'admin' | 'doctor';
+  createdAt?: string;
 }
 
 export async function loginUser(
@@ -69,7 +68,11 @@ export async function createUser(
 
   const passwordHash = await bcrypt.hash(password, 12);
   const user = await User.create({ name, email, passwordHash, role });
-  return { id: user.id, name: user.name, email: user.email, role: user.role };
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    createdAt: user.createdAt.toISOString(),
+  };
 }
-
-export { SEVEN_DAYS_MS };

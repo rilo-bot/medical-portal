@@ -1,21 +1,20 @@
 import type { Request, Response } from 'express';
-import { loginUser, getUserById, changePassword, SEVEN_DAYS_MS } from '../services/auth.service.js';
+import { loginUser, getUserById, changePassword } from '../services/auth.service.js';
 import { logAudit } from '../services/audit.service.js';
 import jwt from 'jsonwebtoken';
 import { env } from '../config/env.js';
 import type { AuthPayload } from '../middleware/requireAuth.js';
 
-// In production the client is typically on a different origin (separate Render services), so the
-// cookie needs SameSite=None + Secure for the browser to send it cross-origin at all (SameSite=Lax
-// blocks cross-site fetch/XHR). In dev, client and server share an origin via the Vite proxy, so
-// Lax + non-secure works over plain HTTP. clearCookie must use the same attributes to actually
-// delete the cookie the browser is holding.
-const sessionCookieOptions = {
-  httpOnly: true,
-  sameSite: (env.nodeEnv === 'production' ? 'none' : 'lax') as 'none' | 'lax',
-  secure: env.nodeEnv === 'production',
-  path: '/',
-};
+// Auth uses a Bearer token (Authorization header), not a cookie — the client and server are
+// typically on different origins (separate Render services), and cookies require SameSite=None
+// cross-origin, which browsers increasingly restrict/block outright. The client stores the token
+// itself (localStorage) and attaches it to every request; the server just verifies the JWT.
+
+function extractBearerToken(req: Request): string | undefined {
+  const header = req.headers.authorization;
+  if (!header?.startsWith('Bearer ')) return undefined;
+  return header.slice('Bearer '.length);
+}
 
 export async function login(req: Request, res: Response): Promise<void> {
   const { email, password } = req.body as { email?: string; password?: string };
@@ -26,14 +25,12 @@ export async function login(req: Request, res: Response): Promise<void> {
 
   const { user, token } = await loginUser(email, password);
 
-  res.cookie('session', token, { ...sessionCookieOptions, maxAge: SEVEN_DAYS_MS });
-
   await logAudit(user.id, 'AUTH_LOGIN', `User ${user.email} logged in`);
-  res.json({ user });
+  res.json({ user, token });
 }
 
 export async function logout(req: Request, res: Response): Promise<void> {
-  const token = req.cookies?.session as string | undefined;
+  const token = extractBearerToken(req);
   if (token) {
     try {
       const payload = jwt.verify(token, env.jwtSecret) as AuthPayload;
@@ -42,7 +39,6 @@ export async function logout(req: Request, res: Response): Promise<void> {
       // ignore invalid token on logout
     }
   }
-  res.clearCookie('session', sessionCookieOptions);
   res.json({ ok: true });
 }
 
@@ -67,7 +63,7 @@ export async function postChangePassword(req: Request, res: Response): Promise<v
 }
 
 export async function me(req: Request, res: Response): Promise<void> {
-  const token = req.cookies?.session as string | undefined;
+  const token = extractBearerToken(req);
   if (!token) {
     res.json({ user: null });
     return;

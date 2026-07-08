@@ -10,9 +10,9 @@ export default function StreamingBubble({ content }: Props) {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
-      className="flex flex-col gap-1 max-w-[72%]"
+      className="flex flex-col gap-1 max-w-[92%] md:max-w-[78%]"
     >
-      <div className="rounded-2xl rounded-tl-sm border border-brand/20 bg-card shadow-sm px-4 py-3">
+      <div className="rounded-xl rounded-tl-sm border border-brand/20 bg-card shadow-sm px-4 py-3">
         {/* Streaming indicator */}
         <div className="flex items-center gap-1.5 mb-2">
           <span className="text-[11px] text-brand font-medium tracking-wide">Searching knowledge base…</span>

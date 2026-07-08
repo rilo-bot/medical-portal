@@ -19,9 +19,9 @@ import type { BookmarkedMessage, Citation } from '@/types'
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function confidenceColor(score: number): string {
-  if (score >= 0.9) return 'bg-emerald-50 text-emerald-700 border-emerald-200'
-  if (score >= 0.75) return 'bg-amber-50 text-amber-700 border-amber-200'
-  return 'bg-red-50 text-red-600 border-red-200'
+  if (score >= 0.9) return 'status-success'
+  if (score >= 0.75) return 'status-warning'
+  return 'status-danger'
 }
 
 function truncate(text: string, maxLen = 280): string {

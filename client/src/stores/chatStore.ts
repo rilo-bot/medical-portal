@@ -26,6 +26,9 @@ interface ChatState {
   sending: boolean
   error: string | null
 
+  /** Set when the user asks to stop the in-flight generation */
+  stopRequested: boolean
+
   /** Follow-up question suggestions populated from the StreamDone event */
   followUps: string[]
 
@@ -38,6 +41,7 @@ interface ChatState {
   selectConversation: (id: string) => Promise<void>
   newConversation: () => Promise<string>
   sendMessage: (content: string) => Promise<void>
+  stopStreaming: () => void
   setComplexityLevel: (level: ComplexityLevel) => void
   bookmarkMessage: (messageId: string, bookmarked: boolean) => Promise<void>
   loadSavedMessages: () => Promise<void>
@@ -55,6 +59,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   loading: false,
   sending: false,
   error: null,
+  stopRequested: false,
   followUps: [],
   savedMessages: [],
   loadingSaved: false,
@@ -107,7 +112,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   sendMessage: async (content) => {
     const { activeConversationId, complexityLevel } = get()
     if (!activeConversationId) return
-    set({ error: null, sending: true, followUps: [] })
+    set({ error: null, sending: true, followUps: [], stopRequested: false })
 
     // Append the user message immediately
     const userMsg: Message = {
@@ -142,6 +147,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const stream = conversationsApi.chat(activeConversationId, content, complexityLevel)
       let fullContent = ''
       for await (const raw of stream) {
+        // User pressed stop — finalise whatever we have and leave the loop.
+        if (get().stopRequested) break
         try {
           const event = JSON.parse(raw)
           if (event.type === 'token') {
@@ -191,15 +198,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
           bookmarked: false,
           createdAt: new Date().toISOString(),
         }
-        set((s) => ({ messages: [...s.messages, assistantMsg], streaming: null, sending: false }))
+        set((s) => ({ messages: [...s.messages, assistantMsg], streaming: null, sending: false, stopRequested: false }))
       } else {
-        set({ streaming: null, sending: false })
+        set({ streaming: null, sending: false, stopRequested: false })
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to send message'
-      set({ streaming: null, sending: false, error: msg })
+      set({ streaming: null, sending: false, stopRequested: false, error: msg })
     }
   },
+
+  stopStreaming: () => set({ stopRequested: true }),
 
   setComplexityLevel: (level) => set({ complexityLevel: level }),
 

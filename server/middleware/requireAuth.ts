@@ -17,8 +17,14 @@ declare global {
   }
 }
 
+function extractBearerToken(req: Request): string | undefined {
+  const header = req.headers.authorization;
+  if (!header?.startsWith('Bearer ')) return undefined;
+  return header.slice('Bearer '.length);
+}
+
 export function requireAuth(req: Request, res: Response, next: NextFunction): void {
-  const token = req.cookies?.session as string | undefined;
+  const token = extractBearerToken(req);
   if (!token) {
     res.status(401).json({ error: 'Unauthorized' });
     return;

@@ -63,7 +63,7 @@ function FileQueueItem({ item, onRemove }: { item: UploadQueueItem; onRemove: (i
           <div className="flex items-center gap-1">
             <CheckCircle className="h-4 w-4 text-emerald-500" />
             {item.duplicate && (
-              <span className="text-[10px] font-semibold px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded-full">
+              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full border status-warning">
                 Duplicate
               </span>
             )}
@@ -448,7 +448,7 @@ export default function DocumentUpload() {
                     initial={{ opacity: 0, y: 4 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0 }}
-                    className="mt-3 flex items-center gap-2 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-sm text-emerald-700"
+                    className="mt-3 flex items-center gap-2 rounded-lg border status-success px-3 py-2 text-sm"
                   >
                     <CheckCircle className="h-4 w-4" />
                     URL queued for indexing — it will appear in the knowledge base shortly.

@@ -24,7 +24,7 @@ export default function ConfidencePill({ confidence, sourceCount }: Props) {
 
   const colorClass =
     pct >= 85 ? 'text-brand bg-brand/10' :
-    pct >= 65 ? 'text-amber-600 bg-amber-50' :
+    pct >= 65 ? 'text-amber-600 bg-amber-50 dark:text-amber-300 dark:bg-amber-500/10' :
     'text-destructive bg-destructive/10'
 
   if (!visible) return null
