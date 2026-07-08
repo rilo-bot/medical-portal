@@ -1,0 +1,83 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 210 40% 98%;
+    --foreground: 215 30% 16%;
+    --card: 0 0% 100%;
+    --card-foreground: 215 30% 16%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 30% 16%;
+    --primary: 199 89% 42%;
+    --primary-foreground: 199 25% 9%;
+    --secondary: 210 30% 94%;
+    --secondary-foreground: 210 25% 9%;
+    --muted: 210 25% 92%;
+    --muted-foreground: 210 24% 42%;
+    --accent: 172 19.8% 92%;
+    --accent-foreground: 172 25% 9%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 99%;
+    --border: 214 25% 88%;
+    --input: 214 25% 88%;
+    --ring: 199 89% 42%;
+    --brand: 199 89% 42%;
+    --brand-foreground: 199 25% 9%;
+    --brand-accent: 172 66% 40%;
+    --brand-accent-foreground: 172 25% 9%;
+    --chart-1: 199 68% 52%;
+    --chart-2: 172 68% 52%;
+    --chart-3: 343 68% 52%;
+    --chart-4: 55 68% 52%;
+    --chart-5: 127 68% 52%;
+    --radius: 0.6rem;
+  }
+
+  .dark {
+    --background: 199 17.8% 9%;
+    --foreground: 199 18% 96%;
+    --card: 199 19.6% 12%;
+    --card-foreground: 199 18% 96%;
+    --popover: 199 19.6% 12%;
+    --popover-foreground: 199 18% 96%;
+    --primary: 199 89% 50%;
+    --primary-foreground: 199 25% 9%;
+    --secondary: 172 19.8% 16%;
+    --secondary-foreground: 172 15% 99%;
+    --muted: 199 17.8% 18%;
+    --muted-foreground: 199 16% 65%;
+    --accent: 172 16.5% 18%;
+    --accent-foreground: 172 15% 99%;
+    --destructive: 0 62% 45%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 199 19.6% 22%;
+    --input: 199 19.6% 22%;
+    --ring: 199 89% 50%;
+    --brand: 199 89% 50%;
+    --brand-foreground: 199 25% 9%;
+    --brand-accent: 172 66% 50%;
+    --brand-accent-foreground: 172 25% 9%;
+    --chart-1: 199 70% 62%;
+    --chart-2: 172 70% 62%;
+    --chart-3: 343 70% 62%;
+    --chart-4: 55 70% 62%;
+    --chart-5: 127 70% 62%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: Inter, sans-serif;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: Source Serif 4, serif;
+  }
+}
