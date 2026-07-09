@@ -47,34 +47,18 @@ interface UserRowProps {
   index: number
   isSelf: boolean
   onRoleChange: (id: string, role: Role) => void
-  onDelete: (id: string) => Promise<void>
+  onRequestDelete: (user: AdminUser) => void
   onResetPassword: (user: AdminUser) => void
 }
 
-function UserRow({ user, index, isSelf, onRoleChange, onDelete, onResetPassword }: UserRowProps) {
+function UserRow({ user, index, isSelf, onRoleChange, onRequestDelete, onResetPassword }: UserRowProps) {
   const [changing, setChanging] = useState(false)
-  const [confirmingDelete, setConfirmingDelete] = useState(false)
-  const [deleting, setDeleting] = useState(false)
 
   async function handleRoleChange(newRole: Role) {
     if (newRole === user.role) return
     setChanging(true)
     await onRoleChange(user.id, newRole)
     setChanging(false)
-  }
-
-  async function handleDeleteClick() {
-    if (!confirmingDelete) {
-      setConfirmingDelete(true)
-      return
-    }
-    setDeleting(true)
-    try {
-      await onDelete(user.id)
-    } finally {
-      setDeleting(false)
-      setConfirmingDelete(false)
-    }
   }
 
   return (
@@ -142,18 +126,11 @@ function UserRow({ user, index, isSelf, onRoleChange, onDelete, onResetPassword 
               <KeyRound className="h-3.5 w-3.5" />
             </button>
             <button
-              onClick={handleDeleteClick}
-              onBlur={() => setConfirmingDelete(false)}
-              disabled={deleting}
-              title={confirmingDelete ? 'Click again to confirm delete' : 'Delete user'}
-              className={[
-                'p-1.5 rounded-lg transition-colors',
-                confirmingDelete
-                  ? 'text-red-600 bg-red-50 dark:text-red-300 dark:bg-red-500/10'
-                  : 'text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:text-red-300 dark:hover:bg-red-500/10',
-              ].join(' ')}
+              onClick={() => onRequestDelete(user)}
+              title="Delete user"
+              className="p-1.5 rounded-lg text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:text-red-300 dark:hover:bg-red-500/10 transition-colors"
             >
-              {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+              <Trash2 className="h-3.5 w-3.5" />
             </button>
           </div>
         )}
@@ -442,6 +419,104 @@ function ResetPasswordModal({ userName, onSubmit, onClose, error }: ResetPasswor
   )
 }
 
+// ─── Delete User Modal ─────────────────────────────────────────────────────────
+
+interface DeleteUserModalProps {
+  user: AdminUser
+  onConfirm: () => Promise<void>
+  onClose: () => void
+  error: string | null
+}
+
+function DeleteUserModal({ user, onConfirm, onClose, error }: DeleteUserModalProps) {
+  const [loading, setLoading] = useState(false)
+
+  async function handleConfirm() {
+    setLoading(true)
+    try {
+      await onConfirm()
+      onClose()
+    } catch {
+      // Failed — keep the dialog open so the error (below) is visible instead of silently
+      // reverting with no explanation.
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/20 backdrop-blur-sm"
+      onClick={() => !loading && onClose()}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 12 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 12 }}
+        transition={{ duration: 0.22 }}
+        className="w-full max-w-sm rounded-2xl bg-card border border-border shadow-2xl p-6"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2.5">
+            <div className="h-9 w-9 rounded-lg bg-red-50 dark:bg-red-500/10 flex items-center justify-center">
+              <Trash2 className="h-4 w-4 text-red-600 dark:text-red-300" />
+            </div>
+            <h2
+              className="text-base font-semibold text-foreground"
+              style={{ fontFamily: 'Source Serif 4, serif' }}
+            >
+              Delete user
+            </h2>
+          </div>
+          <button
+            onClick={onClose}
+            disabled={loading}
+            className="p-1.5 rounded-lg text-muted-foreground hover:bg-muted transition-colors disabled:opacity-50"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <p className="text-sm text-muted-foreground mb-4">
+          Are you sure you want to delete{' '}
+          <span className="font-medium text-foreground">{user.name}</span> ({user.email})? They will
+          lose access immediately. This cannot be undone.
+        </p>
+
+        {error && (
+          <div className="mb-4 flex items-start gap-2 rounded-lg bg-destructive/10 border border-destructive/20 px-3 py-2 text-sm text-destructive">
+            <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+            {error}
+          </div>
+        )}
+
+        <div className="flex gap-2">
+          <button
+            onClick={handleConfirm}
+            disabled={loading}
+            className="flex-1 flex items-center justify-center gap-2 bg-red-600 text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-red-700 transition-colors disabled:opacity-50"
+          >
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+            Delete user
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={loading}
+            className="px-4 py-2.5 text-sm font-medium text-muted-foreground border border-border rounded-lg hover:bg-muted transition-colors disabled:opacity-50"
+          >
+            Cancel
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  )
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function UserManagement() {
@@ -461,6 +536,7 @@ export default function UserManagement() {
   const [searchQuery, setSearchQuery] = useState('')
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [resetPasswordUser, setResetPasswordUser] = useState<AdminUser | null>(null)
+  const [deleteUserTarget, setDeleteUserTarget] = useState<AdminUser | null>(null)
 
   useEffect(() => {
     if (currentUser && currentUser.role !== 'admin') {
@@ -480,6 +556,11 @@ export default function UserManagement() {
   async function handleResetPassword(newPassword: string) {
     if (!resetPasswordUser) return
     await resetUserPassword(resetPasswordUser.id, newPassword)
+  }
+
+  async function handleConfirmDelete() {
+    if (!deleteUserTarget) return
+    await removeUser(deleteUserTarget.id)
   }
 
   const filteredUsers = users.filter(
@@ -601,8 +682,8 @@ export default function UserManagement() {
                     index={i}
                     isSelf={u.id === currentUser.id}
                     onRoleChange={updateUserRole}
-                    onDelete={removeUser}
-                    onResetPassword={setResetPasswordUser}
+                    onRequestDelete={(u) => { clearError(); setDeleteUserTarget(u) }}
+                    onResetPassword={(u) => { clearError(); setResetPasswordUser(u) }}
                   />
                 ))
               )}
@@ -629,6 +710,18 @@ export default function UserManagement() {
             userName={resetPasswordUser.name}
             onSubmit={handleResetPassword}
             onClose={() => { clearError(); setResetPasswordUser(null) }}
+            error={error}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Delete user modal */}
+      <AnimatePresence>
+        {deleteUserTarget && (
+          <DeleteUserModal
+            user={deleteUserTarget}
+            onConfirm={handleConfirmDelete}
+            onClose={() => { clearError(); setDeleteUserTarget(null) }}
             error={error}
           />
         )}
