@@ -1,6 +1,13 @@
 import { Router } from 'express';
 import { requireAdmin } from '../middleware/requireAuth.js';
-import { getUsers, postUser, patchUser, getAudit } from '../controllers/admin.controller.js';
+import {
+  getUsers,
+  postUser,
+  patchUser,
+  deleteUserHandler,
+  patchUserPassword,
+  getAudit,
+} from '../controllers/admin.controller.js';
 
 const router = Router();
 
@@ -10,6 +17,8 @@ router.use(requireAdmin);
 router.get('/users', getUsers);
 router.post('/users', postUser);
 router.patch('/users/:id', patchUser);
+router.patch('/users/:id/password', patchUserPassword);
+router.delete('/users/:id', deleteUserHandler);
 router.get('/audit', getAudit);
 
 export default router;

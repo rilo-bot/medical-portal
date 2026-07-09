@@ -287,6 +287,20 @@ export const adminApi = {
     return handleResponse(res)
   },
 
+  async removeUser(id: string): Promise<{ ok: true }> {
+    const res = await apiFetch(`/api/admin/users/${id}`, { method: 'DELETE' })
+    return handleResponse(res)
+  },
+
+  async resetUserPassword(id: string, newPassword: string): Promise<{ ok: true }> {
+    const res = await apiFetch(`/api/admin/users/${id}/password`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ newPassword }),
+    })
+    return handleResponse(res)
+  },
+
   async auditLog(): Promise<{ entries: AuditEntry[] }> {
     const res = await apiFetch('/api/admin/audit')
     return handleResponse(res)

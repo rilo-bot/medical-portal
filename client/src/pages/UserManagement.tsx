@@ -9,9 +9,12 @@ import {
   Stethoscope,
   Loader2,
   AlertCircle,
+  CheckCircle2,
   X,
   ChevronDown,
   ArrowLeft,
+  KeyRound,
+  Trash2,
 } from 'lucide-react'
 import { useAdminStore } from '@/stores/adminStore'
 import { useAuthStore } from '@/stores/authStore'
@@ -44,16 +47,34 @@ interface UserRowProps {
   index: number
   isSelf: boolean
   onRoleChange: (id: string, role: Role) => void
+  onDelete: (id: string) => Promise<void>
+  onResetPassword: (user: AdminUser) => void
 }
 
-function UserRow({ user, index, isSelf, onRoleChange }: UserRowProps) {
+function UserRow({ user, index, isSelf, onRoleChange, onDelete, onResetPassword }: UserRowProps) {
   const [changing, setChanging] = useState(false)
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   async function handleRoleChange(newRole: Role) {
     if (newRole === user.role) return
     setChanging(true)
     await onRoleChange(user.id, newRole)
     setChanging(false)
+  }
+
+  async function handleDeleteClick() {
+    if (!confirmingDelete) {
+      setConfirmingDelete(true)
+      return
+    }
+    setDeleting(true)
+    try {
+      await onDelete(user.id)
+    } finally {
+      setDeleting(false)
+      setConfirmingDelete(false)
+    }
   }
 
   return (
@@ -107,6 +128,35 @@ function UserRow({ user, index, isSelf, onRoleChange }: UserRowProps) {
             </div>
           )}
         </div>
+      </td>
+
+      {/* Actions */}
+      <td className="px-4 py-3">
+        {!isSelf && (
+          <div className="flex items-center justify-end gap-1">
+            <button
+              onClick={() => onResetPassword(user)}
+              title="Reset password"
+              className="p-1.5 rounded-lg text-muted-foreground hover:text-brand hover:bg-brand/10 transition-colors"
+            >
+              <KeyRound className="h-3.5 w-3.5" />
+            </button>
+            <button
+              onClick={handleDeleteClick}
+              onBlur={() => setConfirmingDelete(false)}
+              disabled={deleting}
+              title={confirmingDelete ? 'Click again to confirm delete' : 'Delete user'}
+              className={[
+                'p-1.5 rounded-lg transition-colors',
+                confirmingDelete
+                  ? 'text-red-600 bg-red-50 dark:text-red-300 dark:bg-red-500/10'
+                  : 'text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:text-red-300 dark:hover:bg-red-500/10',
+              ].join(' ')}
+            >
+              {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+            </button>
+          </div>
+        )}
       </td>
     </motion.tr>
   )
@@ -255,6 +305,143 @@ function CreateUserModal({ onSubmit, onClose, error }: CreateUserModalProps) {
   )
 }
 
+// ─── Reset Password Modal ─────────────────────────────────────────────────────
+
+interface ResetPasswordModalProps {
+  userName: string
+  onSubmit: (newPassword: string) => Promise<void>
+  onClose: () => void
+  error: string | null
+}
+
+function ResetPasswordModal({ userName, onSubmit, onClose, error }: ResetPasswordModalProps) {
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [localError, setLocalError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [success, setSuccess] = useState(false)
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setLocalError(null)
+
+    if (newPassword.length < 8) {
+      setLocalError('Password must be at least 8 characters.')
+      return
+    }
+    if (newPassword !== confirmPassword) {
+      setLocalError('Password and confirmation do not match.')
+      return
+    }
+
+    setLoading(true)
+    try {
+      await onSubmit(newPassword)
+      setSuccess(true)
+    } catch {
+      // error surfaces via the `error` prop from the store
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/20 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 12 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 12 }}
+        transition={{ duration: 0.22 }}
+        className="w-full max-w-sm rounded-2xl bg-card border border-border shadow-2xl p-6"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-5">
+          <h2
+            className="text-base font-semibold text-foreground"
+            style={{ fontFamily: 'Source Serif 4, serif' }}
+          >
+            Reset password
+          </h2>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg text-muted-foreground hover:bg-muted transition-colors"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <p className="text-xs text-muted-foreground mb-4">
+          Set a new password for <span className="font-medium text-foreground">{userName}</span>.
+          They'll need to use this to log in — consider sharing it with them securely.
+        </p>
+
+        {success ? (
+          <div className="flex items-center gap-2 rounded-lg border status-success px-3 py-2.5 text-sm">
+            <CheckCircle2 className="h-4 w-4 shrink-0" />
+            Password updated successfully.
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {(localError || error) && (
+              <div className="flex items-center gap-2 rounded-lg bg-destructive/10 border border-destructive/20 px-3 py-2 text-sm text-destructive">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                {localError ?? error}
+              </div>
+            )}
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">New password *</label>
+              <input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Min. 8 characters"
+                required
+                minLength={8}
+                disabled={loading}
+                className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Confirm password *</label>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                minLength={8}
+                disabled={loading}
+                className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button
+                type="submit"
+                disabled={loading || !newPassword || !confirmPassword}
+                className="flex-1 flex items-center justify-center gap-2 bg-brand text-brand-foreground py-2.5 rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
+              >
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Update password'}
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2.5 text-sm font-medium text-muted-foreground border border-border rounded-lg hover:bg-muted transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        )}
+      </motion.div>
+    </motion.div>
+  )
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function UserManagement() {
@@ -267,10 +454,13 @@ export default function UserManagement() {
   const loadUsers = useAdminStore((s) => s.loadUsers)
   const createUser = useAdminStore((s) => s.createUser)
   const updateUserRole = useAdminStore((s) => s.updateUserRole)
+  const removeUser = useAdminStore((s) => s.removeUser)
+  const resetUserPassword = useAdminStore((s) => s.resetUserPassword)
   const clearError = useAdminStore((s) => s.clearError)
 
   const [searchQuery, setSearchQuery] = useState('')
   const [showCreateModal, setShowCreateModal] = useState(false)
+  const [resetPasswordUser, setResetPasswordUser] = useState<AdminUser | null>(null)
 
   useEffect(() => {
     if (currentUser && currentUser.role !== 'admin') {
@@ -285,6 +475,11 @@ export default function UserManagement() {
   async function handleCreateUser(data: { name: string; email: string; password: string; role: Role }) {
     await createUser(data)
     if (!error) setShowCreateModal(false)
+  }
+
+  async function handleResetPassword(newPassword: string) {
+    if (!resetPasswordUser) return
+    await resetUserPassword(resetPasswordUser.id, newPassword)
   }
 
   const filteredUsers = users.filter(
@@ -386,12 +581,15 @@ export default function UserManagement() {
                 <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                   Role
                 </th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody>
               {filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={3} className="px-4 py-12 text-center text-sm text-muted-foreground">
+                  <td colSpan={4} className="px-4 py-12 text-center text-sm text-muted-foreground">
                     {searchQuery ? 'No users match your search.' : 'No users found.'}
                   </td>
                 </tr>
@@ -403,6 +601,8 @@ export default function UserManagement() {
                     index={i}
                     isSelf={u.id === currentUser.id}
                     onRoleChange={updateUserRole}
+                    onDelete={removeUser}
+                    onResetPassword={setResetPasswordUser}
                   />
                 ))
               )}
@@ -417,6 +617,18 @@ export default function UserManagement() {
           <CreateUserModal
             onSubmit={handleCreateUser}
             onClose={() => setShowCreateModal(false)}
+            error={error}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Reset password modal */}
+      <AnimatePresence>
+        {resetPasswordUser && (
+          <ResetPasswordModal
+            userName={resetPasswordUser.name}
+            onSubmit={handleResetPassword}
+            onClose={() => { clearError(); setResetPasswordUser(null) }}
             error={error}
           />
         )}

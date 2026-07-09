@@ -1,6 +1,6 @@
 import { User } from '../models/User.js';
 import { AuditEntry } from '../models/AuditEntry.js';
-import { createUser } from './auth.service.js';
+import { createUser, adminResetPassword } from './auth.service.js';
 
 export async function listUsers() {
   const users = await User.find().sort({ createdAt: -1 }).lean();
@@ -29,6 +29,28 @@ export async function updateUserRole(
   const user = await User.findByIdAndUpdate(userId, { role }, { new: true });
   if (!user) throw Object.assign(new Error('User not found'), { status: 404 });
   return { id: user.id, role: user.role };
+}
+
+export async function deleteUser(userId: string, requestingAdminId: string): Promise<void> {
+  if (userId === requestingAdminId) {
+    throw Object.assign(new Error('You cannot delete your own account'), { status: 400 });
+  }
+
+  const user = await User.findById(userId);
+  if (!user) throw Object.assign(new Error('User not found'), { status: 404 });
+
+  if (user.role === 'admin') {
+    const adminCount = await User.countDocuments({ role: 'admin' });
+    if (adminCount <= 1) {
+      throw Object.assign(new Error('Cannot delete the last remaining administrator'), { status: 400 });
+    }
+  }
+
+  await User.findByIdAndDelete(userId);
+}
+
+export async function resetUserPassword(userId: string, newPassword: string): Promise<void> {
+  await adminResetPassword(userId, newPassword);
 }
 
 export async function listAuditEntries() {

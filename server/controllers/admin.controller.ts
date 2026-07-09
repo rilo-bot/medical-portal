@@ -1,5 +1,12 @@
 import type { Request, Response } from 'express';
-import { listUsers, addUser, updateUserRole, listAuditEntries } from '../services/admin.service.js';
+import {
+  listUsers,
+  addUser,
+  updateUserRole,
+  deleteUser,
+  resetUserPassword,
+  listAuditEntries,
+} from '../services/admin.service.js';
 import { logAudit } from '../services/audit.service.js';
 
 export async function getUsers(_req: Request, res: Response): Promise<void> {
@@ -41,6 +48,27 @@ export async function patchUser(req: Request, res: Response): Promise<void> {
   const result = await updateUserRole(id, role);
   await logAudit(req.userId, 'ADMIN_USER_ROLE_UPDATE', `Updated user ${id} role to ${role}`);
   res.json(result);
+}
+
+export async function deleteUserHandler(req: Request, res: Response): Promise<void> {
+  const { id } = req.params;
+  await deleteUser(id, req.userId);
+  await logAudit(req.userId, 'ADMIN_USER_DELETE', `Deleted user ${id}`);
+  res.json({ ok: true });
+}
+
+export async function patchUserPassword(req: Request, res: Response): Promise<void> {
+  const { id } = req.params;
+  const { newPassword } = req.body as { newPassword?: string };
+
+  if (!newPassword || newPassword.length < 8) {
+    res.status(400).json({ error: 'newPassword must be at least 8 characters' });
+    return;
+  }
+
+  await resetUserPassword(id, newPassword);
+  await logAudit(req.userId, 'ADMIN_USER_PASSWORD_RESET', `Reset password for user ${id}`);
+  res.json({ ok: true });
 }
 
 export async function getAudit(_req: Request, res: Response): Promise<void> {

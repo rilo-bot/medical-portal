@@ -16,6 +16,8 @@ interface AdminState {
   loadAudit: () => Promise<void>
   createUser: (payload: { name: string; email: string; password: string; role: Role }) => Promise<void>
   updateUserRole: (id: string, role: Role) => Promise<void>
+  removeUser: (id: string) => Promise<void>
+  resetUserPassword: (id: string, newPassword: string) => Promise<void>
   clearError: () => void
 }
 
@@ -74,6 +76,30 @@ export const useAdminStore = create<AdminState>((set) => ({
       // Revert on failure — do not keep an optimistic state that doesn't match the server
       set({ users: previous })
       const msg = err instanceof Error ? err.message : 'Failed to update role'
+      set({ error: msg })
+      throw new Error(msg)
+    }
+  },
+
+  removeUser: async (id) => {
+    const previous = useAdminStore.getState().users
+    set((s) => ({ users: s.users.filter((u) => u.id !== id), error: null }))
+    try {
+      await adminApi.removeUser(id)
+    } catch (err: unknown) {
+      set({ users: previous })
+      const msg = err instanceof Error ? err.message : 'Failed to delete user'
+      set({ error: msg })
+      throw new Error(msg)
+    }
+  },
+
+  resetUserPassword: async (id, newPassword) => {
+    set({ error: null })
+    try {
+      await adminApi.resetUserPassword(id, newPassword)
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to reset password'
       set({ error: msg })
       throw new Error(msg)
     }

@@ -46,6 +46,15 @@ export async function changePassword(
   await user.save();
 }
 
+/** Admin-initiated reset — unlike changePassword, does not require knowing the current password. */
+export async function adminResetPassword(userId: string, newPassword: string): Promise<void> {
+  const user = await User.findById(userId);
+  if (!user) throw Object.assign(new Error('User not found'), { status: 404 });
+
+  user.passwordHash = await bcrypt.hash(newPassword, 12);
+  await user.save();
+}
+
 export async function getUserById(id: string): Promise<SessionUser | null> {
   const user = await User.findById(id).lean();
   if (!user) return null;
